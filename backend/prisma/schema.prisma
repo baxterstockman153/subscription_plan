@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  FREE
+  PRO
+  BUSINESS
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  name         String
+  avatarUrl    String?
+  createdAt    DateTime      @default(now())
+  subscription Subscription?
+  usageSummary UsageSummary?
+  projects     Project[]
+  usageEvents  UsageEvent[]
+}
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  plan                 Plan     @default(FREE)
+  status               String   @default("active")
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  user                 User     @relation(fields: [userId], references: [id])
+}
+
+model UsageSummary {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  creditsUsed  Int      @default(0)
+  creditsLimit Int
+  resetAt      DateTime
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id])
+}
+
+model Project {
+  id           String       @id @default(cuid())
+  userId       String
+  name         String
+  engine       String       @default("Unity")
+  creditsUsed  Int          @default(0)
+  lastActiveAt DateTime?
+  createdAt    DateTime     @default(now())
+  user         User         @relation(fields: [userId], references: [id])
+  usageEvents  UsageEvent[]
+}
+
+model UsageEvent {
+  id               String   @id @default(cuid())
+  userId           String
+  projectId        String?
+  feature          String
+  creditsConsumed  Int
+  occurredAt       DateTime @default(now())
+  user             User     @relation(fields: [userId], references: [id])
+  project          Project? @relation(fields: [projectId], references: [id])
+}
