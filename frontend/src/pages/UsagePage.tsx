@@ -86,11 +86,15 @@ function statColor(pct: number): string {
 // ─── Main component ───────────────────────────────────────────────────────────
 export function UsagePage() {
   const { data, loading, error, refetch } = useDashboard();
-  const [selectedPlan, setSelectedPlan] = useState<'FREE' | 'PRO' | 'ADVANCED' | null>(null);
+  const [selectedPlan, setSelectedPlan] = useState<'FREE' | 'PRO' | 'BUSINESS' | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [switchError, setSwitchError] = useState<string | null>(null);
+  const [checkoutStep, setCheckoutStep] = useState<'idle' | 'redirecting' | 'completing'>('idle');
+  const [canceling, setCanceling] = useState(false);
+  const [resuming, setResuming] = useState(false);
+  const [cancelResumeError, setCancelResumeError] = useState<string | null>(null);
 
   // ── Loading state ────────────────────────────────────────────────────────────
   if (loading) {
@@ -132,14 +136,49 @@ export function UsagePage() {
     if (!selectedPlan) return;
     setSwitching(true);
     setSwitchError(null);
+    setCheckoutStep('redirecting');
     try {
+      // Step 1: Create a Stripe Checkout session (mock returns sessionId + url)
+      await api.createCheckoutSession(selectedPlan);
+      // Step 2: Simulate the redirect delay (in prod, user would be sent to session.url)
+      await new Promise((r) => setTimeout(r, 1200));
+      setCheckoutStep('completing');
+      // Step 3: Complete the plan change (in prod, this would be triggered by the Stripe webhook)
       await api.changePlan(selectedPlan);
       setSelectedPlan(null);
+      setCheckoutStep('idle');
       refetch();
     } catch (err) {
       setSwitchError(err instanceof Error ? err.message : 'Failed to switch plan');
+      setCheckoutStep('idle');
     } finally {
       setSwitching(false);
+    }
+  }
+
+  async function handleCancel() {
+    setCanceling(true);
+    setCancelResumeError(null);
+    try {
+      await api.cancelSubscription();
+      refetch();
+    } catch (err) {
+      setCancelResumeError(err instanceof Error ? err.message : 'Failed to cancel subscription');
+    } finally {
+      setCanceling(false);
+    }
+  }
+
+  async function handleResume() {
+    setResuming(true);
+    setCancelResumeError(null);
+    try {
+      await api.resumeSubscription();
+      refetch();
+    } catch (err) {
+      setCancelResumeError(err instanceof Error ? err.message : 'Failed to resume subscription');
+    } finally {
+      setResuming(false);
     }
   }
 
@@ -329,6 +368,24 @@ export function UsagePage() {
           Plan Management
         </h2>
 
+        {/* Cancellation notice — shown when subscription will cancel at period end */}
+        {subscription?.cancelAtPeriodEnd && (
+          <div className="flex items-start gap-2 p-3 mb-4 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="flex-shrink-0 mt-0.5">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>
+              Your subscription will cancel on{' '}
+              <span className="font-semibold">
+                {formatResetDate(subscription.currentPeriodEnd)}
+              </span>
+              . You'll keep access until then.
+            </span>
+          </div>
+        )}
+
         {/* Plan cards */}
         <div className="grid grid-cols-3 gap-4 mb-4">
           {PLANS.map((plan) => {
@@ -382,7 +439,7 @@ export function UsagePage() {
         {/* Preview panel */}
         {selectedPlan && (() => {
           const newPlan = PLANS.find((p) => p.code === selectedPlan)!;
-          const currentPlanData = PLANS.find((p) => p.code === currentPlan)!;
+          const currentPlanData = PLANS.find((p) => p.code === currentPlan) ?? PLANS[0];
           const newPct = newPlan.credits > 0
             ? (usage.creditsUsed / newPlan.credits) * 100
             : 0;
@@ -429,7 +486,11 @@ export function UsagePage() {
                   disabled={switching}
                   className="px-4 py-2 text-sm font-medium bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
                 >
-                  {switching ? 'Switching…' : 'Confirm Switch'}
+                  {checkoutStep === 'redirecting'
+                    ? 'Redirecting to Stripe…'
+                    : checkoutStep === 'completing'
+                    ? 'Completing payment…'
+                    : 'Confirm Switch'}
                 </button>
                 <button
                   onClick={() => { setSelectedPlan(null); setSwitchError(null); }}
@@ -441,6 +502,39 @@ export function UsagePage() {
             </div>
           );
         })()}
+
+        {/* Cancel / Resume subscription controls */}
+        {currentPlan !== 'FREE' && (
+          <div className="mt-4 pt-4 border-t border-slate-800 flex items-center justify-between">
+            <div>
+              {cancelResumeError && (
+                <p className="text-xs text-red-400 mb-1">{cancelResumeError}</p>
+              )}
+              {subscription?.cancelAtPeriodEnd ? (
+                <button
+                  onClick={handleResume}
+                  disabled={resuming}
+                  className="px-4 py-2 text-sm font-medium bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-100 rounded-lg border border-slate-700 transition-colors"
+                >
+                  {resuming ? 'Resuming…' : 'Resume Subscription'}
+                </button>
+              ) : (
+                <button
+                  onClick={handleCancel}
+                  disabled={canceling}
+                  className="px-4 py-2 text-sm font-medium text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {canceling ? 'Canceling…' : 'Cancel Subscription'}
+                </button>
+              )}
+            </div>
+            <p className="text-xs text-slate-600">
+              {subscription?.cancelAtPeriodEnd
+                ? 'Your plan is scheduled to cancel'
+                : 'Cancel anytime — access continues until period end'}
+            </p>
+          </div>
+        )}
       </div>
 
     </div>

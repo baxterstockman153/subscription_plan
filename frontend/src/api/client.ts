@@ -43,4 +43,20 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ planCode }),
     }),
+
+  createCheckoutSession: (planCode: 'FREE' | 'PRO' | 'BUSINESS') =>
+    request<{ sessionId: string; url: string }>('/stripe/create-checkout-session', {
+      method: 'POST',
+      body: JSON.stringify({ planCode }),
+    }),
+
+  cancelSubscription: () =>
+    request<{ subscription: object }>('/stripe/cancel-subscription', {
+      method: 'POST',
+    }),
+
+  resumeSubscription: () =>
+    request<{ subscription: object }>('/stripe/resume-subscription', {
+      method: 'POST',
+    }),
 };
