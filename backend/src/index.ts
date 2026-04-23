@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { dashboardRouter } from "./routes/dashboard";
 import { subscriptionRouter } from "./routes/subscription";
 import { usageEventsRouter } from "./routes/usageEvents";
+import { projectsRouter } from "./routes/projects";
 import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
@@ -21,6 +22,7 @@ app.get("/health", (_req, res) => res.json({ success: true }));
 app.use("/api", dashboardRouter);
 app.use("/api", subscriptionRouter);
 app.use("/api", usageEventsRouter);
+app.use("/api", projectsRouter);
 
 // Global error handler (must be last)
 app.use(errorHandler);

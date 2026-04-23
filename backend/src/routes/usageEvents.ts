@@ -4,6 +4,29 @@ import { getCurrentUserId } from "../lib/currentUser";
 
 export const usageEventsRouter = Router();
 
+// GET /api/usage-events
+usageEventsRouter.get(
+  "/usage-events",
+  async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = getCurrentUserId();
+      const events = await prisma.usageEvent.findMany({
+        where: { userId },
+        include: {
+          project: {
+            select: { id: true, name: true, engine: true },
+          },
+        },
+        orderBy: { occurredAt: "desc" },
+        take: 50,
+      });
+      res.json({ success: true, data: { events } });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 usageEventsRouter.post(
   "/usage-events",
   async (req: Request, res: Response, next: NextFunction) => {
