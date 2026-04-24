@@ -11,13 +11,15 @@ const PLAN_CREDIT_LIMITS: Record<Plan, number> = {
   BUSINESS: 10000,
 };
 
+// POST /api/subscription/change-plan
+// Only used for FREE plan (no payment required).
+// PRO/BUSINESS plans are updated via checkout.session.completed webhook.
 subscriptionRouter.post(
   "/subscription/change-plan",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { planCode } = req.body as { planCode: string };
 
-      // Validate planCode is a valid Plan enum value
       if (!planCode || !(planCode in Plan)) {
         res.status(400).json({
           success: false,
@@ -26,28 +28,28 @@ subscriptionRouter.post(
         return;
       }
 
+      if (planCode !== "FREE") {
+        res.status(400).json({
+          success: false,
+          error: "Only FREE plan switching is allowed via this endpoint. Paid plans are updated via Stripe webhook.",
+        });
+        return;
+      }
+
       const plan = planCode as Plan;
       const userId = getCurrentUserId();
 
-      // Update subscription plan and simulate a new Stripe subscription ID
       const updatedSubscription = await prisma.subscription.update({
         where: { userId },
-        data: {
-          plan,
-          stripeSubscriptionId: `sub_mock_${Date.now()}`,
-        },
+        data: { plan, status: "active" },
       });
 
-      // Update usage summary credit limit to match the new plan
       await prisma.usageSummary.update({
         where: { userId },
         data: { creditsLimit: PLAN_CREDIT_LIMITS[plan] },
       });
 
-      res.json({
-        success: true,
-        data: { subscription: updatedSubscription },
-      });
+      res.json({ success: true, data: { subscription: updatedSubscription } });
     } catch (err) {
       next(err);
     }

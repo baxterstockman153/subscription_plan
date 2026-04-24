@@ -45,10 +45,13 @@ export const api = {
     }),
 
   createCheckoutSession: (planCode: 'FREE' | 'PRO' | 'BUSINESS') =>
-    request<{ sessionId: string; url: string }>('/stripe/create-checkout-session', {
+    request<{ sessionId: string; clientSecret: string }>('/stripe/create-checkout-session', {
       method: 'POST',
       body: JSON.stringify({ planCode }),
     }),
+
+  getSessionStatus: (sessionId: string) =>
+    request<{ status: string; paymentStatus: string }>(`/stripe/session-status?session_id=${sessionId}`),
 
   cancelSubscription: () =>
     request<{ subscription: object }>('/stripe/cancel-subscription', {

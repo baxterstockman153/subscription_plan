@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ChevronDown, RefreshCw } from 'lucide-react';
 import { api } from '../api/client';
 import { useDashboard } from '../hooks/useDashboard';
+import { CheckoutModal } from '../components/CheckoutModal';
 
 // ─── Plan constants ───────────────────────────────────────────────────────────
 const PLANS = [
@@ -91,7 +92,7 @@ export function UsagePage() {
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
   const [switchError, setSwitchError] = useState<string | null>(null);
-  const [checkoutStep, setCheckoutStep] = useState<'idle' | 'redirecting' | 'completing'>('idle');
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [resuming, setResuming] = useState(false);
   const [cancelResumeError, setCancelResumeError] = useState<string | null>(null);
@@ -134,26 +135,29 @@ export function UsagePage() {
   // ── Confirm plan switch ──────────────────────────────────────────────────────
   async function confirmSwitch() {
     if (!selectedPlan) return;
-    setSwitching(true);
-    setSwitchError(null);
-    setCheckoutStep('redirecting');
-    try {
-      // Step 1: Create a Stripe Checkout session (mock returns sessionId + url)
-      await api.createCheckoutSession(selectedPlan);
-      // Step 2: Simulate the redirect delay (in prod, user would be sent to session.url)
-      await new Promise((r) => setTimeout(r, 1200));
-      setCheckoutStep('completing');
-      // Step 3: Complete the plan change (in prod, this would be triggered by the Stripe webhook)
-      await api.changePlan(selectedPlan);
-      setSelectedPlan(null);
-      setCheckoutStep('idle');
-      refetch();
-    } catch (err) {
-      setSwitchError(err instanceof Error ? err.message : 'Failed to switch plan');
-      setCheckoutStep('idle');
-    } finally {
-      setSwitching(false);
+
+    if (selectedPlan === 'FREE') {
+      setSwitching(true);
+      setSwitchError(null);
+      try {
+        await api.changePlan('FREE');
+        setSelectedPlan(null);
+        refetch();
+      } catch (err) {
+        setSwitchError(err instanceof Error ? err.message : 'Failed to switch plan');
+      } finally {
+        setSwitching(false);
+      }
+      return;
     }
+
+    setCheckoutOpen(true);
+  }
+
+  function handleCheckoutClose() {
+    setCheckoutOpen(false);
+    setSelectedPlan(null);
+    refetch();
   }
 
   async function handleCancel() {
@@ -184,6 +188,13 @@ export function UsagePage() {
 
   return (
     <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
+
+      {checkoutOpen && selectedPlan && selectedPlan !== 'FREE' && (
+        <CheckoutModal
+          planCode={selectedPlan as 'PRO' | 'BUSINESS'}
+          onClose={handleCheckoutClose}
+        />
+      )}
 
       {/* ── Page header ────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-2">
@@ -486,11 +497,7 @@ export function UsagePage() {
                   disabled={switching}
                   className="px-4 py-2 text-sm font-medium bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
                 >
-                  {checkoutStep === 'redirecting'
-                    ? 'Redirecting to Stripe…'
-                    : checkoutStep === 'completing'
-                    ? 'Completing payment…'
-                    : 'Confirm Switch'}
+                  {switching ? 'Switching…' : 'Confirm Switch'}
                 </button>
                 <button
                   onClick={() => { setSelectedPlan(null); setSwitchError(null); }}
