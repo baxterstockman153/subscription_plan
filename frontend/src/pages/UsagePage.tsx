@@ -85,7 +85,7 @@ function statColor(pct: number): string {
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
-export function UsagePage() {
+export default function UsagePage() {
   const { data, loading, error, refetch } = useDashboard();
   const [selectedPlan, setSelectedPlan] = useState<'FREE' | 'PRO' | 'BUSINESS' | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);

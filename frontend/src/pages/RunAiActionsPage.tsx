@@ -8,7 +8,7 @@ import { RunActionForm } from '../components/RunActionForm';
 import { ActionHistory } from '../components/ActionHistory';
 import type { Project } from '../types';
 
-export function RunAiActionsPage() {
+export default function RunAiActionsPage() {
   const {
     projects,
     loading: projectsLoading,
