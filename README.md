@@ -2,6 +2,11 @@
 
 A full-stack subscription and AI usage dashboard built for the Bezi Software Engineer (Accounts) take-home assignment. Users can view their subscription plan, monitor AI credit usage with 7-day and 30-day charts, switch between Free/Pro/Advanced plans via Stripe Checkout, manage connected Unity projects, and run simulated AI actions that consume credits.
 
+## Live Demo
+
+* [Demo Video](https://youtu.be/lJMlt001ZQM)
+* [Live Demo](https://subscription-plan-1.onrender.com) 
+
 ## Tech Stack
 
 | Layer | Technology | Why |
