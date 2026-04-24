@@ -88,8 +88,8 @@ function statColor(pct: number): string {
 export function UsagePage() {
   const { data, loading, error, refetch } = useDashboard();
   const [selectedPlan, setSelectedPlan] = useState<'FREE' | 'PRO' | 'BUSINESS' | null>(null);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsTab, setDetailsTab] = useState<'history' | 'projects'>('history');
   const [switching, setSwitching] = useState(false);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
@@ -243,131 +243,132 @@ export function UsagePage() {
         </div>
       </div>
 
-      {/* ── 2. Usage History Charts ────────────────────────────────────────── */}
+      {/* ── 2 & 3. Usage Details (History + Project Breakdown) ────────────── */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
         <button
-          onClick={() => setHistoryOpen((v) => !v)}
+          onClick={() => setDetailsOpen((v) => !v)}
           className="flex items-center justify-between w-full text-left"
         >
           <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest">
-            Usage History
+            Usage Details
           </h2>
           <ChevronDown
             size={16}
-            className={`text-slate-500 transition-transform duration-200 ${historyOpen ? 'rotate-180' : ''}`}
+            className={`text-slate-500 transition-transform duration-200 ${detailsOpen ? 'rotate-180' : ''}`}
           />
         </button>
-        {historyOpen && (
-          <div className="mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { label: 'Last 7 Days',  days: usage.last7Days },
-                { label: 'Last 30 Days', days: usage.last30Days },
-              ].map(({ label, days }) => {
-                const maxCredits = Math.max(...days.map((d) => d.credits), 1);
-                return (
-                  <div key={label} className="bg-slate-800/40 border border-slate-800 rounded-xl p-6">
-                    <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-5">
-                      {label}
-                    </h2>
-                    <div className="flex items-end gap-1 h-28">
-                      {days.map((d) => {
-                        const heightPct = (d.credits / maxCredits) * 100;
-                        return (
-                          <div
-                            key={d.date}
-                            className="group flex-1 flex flex-col items-center justify-end h-full gap-1"
-                          >
-                            {/* Tooltip on hover */}
-                            <span className="text-[10px] text-violet-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity leading-none">
-                              {d.credits}
-                            </span>
-                            <div
-                              className="w-full rounded-t bg-gradient-to-t from-violet-600 to-violet-400 min-h-[2px] transition-all"
-                              style={{ height: `${Math.max(heightPct, d.credits > 0 ? 4 : 0)}%` }}
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                    {/* X-axis labels — show only first, middle, last to avoid clutter */}
-                    <div className="flex justify-between mt-1">
-                      {[days[0], days[Math.floor(days.length / 2)], days[days.length - 1]]
-                        .filter(Boolean)
-                        .map((d, i) => (
-                          <span key={i} className="text-[10px] text-slate-600">
-                            {new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </span>
-                        ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
 
-      {/* ── 3. Per-Project Breakdown ───────────────────────────────────────── */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-        <button
-          onClick={() => setBreakdownOpen((v) => !v)}
-          className="flex items-center justify-between w-full text-left"
-        >
-          <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest">
-            Project Breakdown
-          </h2>
-          <ChevronDown
-            size={16}
-            className={`text-slate-500 transition-transform duration-200 ${breakdownOpen ? 'rotate-180' : ''}`}
-          />
-        </button>
-        {breakdownOpen && (
+        {detailsOpen && (
           <div className="mt-4">
-            {projects.length === 0 ? (
-              <div className="text-center py-10">
-                <p className="text-sm text-slate-500">No projects yet</p>
-                <p className="text-xs text-slate-600 mt-1">Create a project to see per-project usage</p>
-              </div>
-            ) : (
-              <ul className="space-y-3">
-                {projects.map((project) => {
-                  const projectPct = usage.creditsLimit > 0
-                    ? (project.creditsUsed / usage.creditsLimit) * 100
-                    : 0;
+            {/* Tabs */}
+            <div className="flex gap-1 p-1 bg-slate-800/50 rounded-lg mb-5 w-fit">
+              {(['history', 'projects'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setDetailsTab(tab)}
+                  className={`px-4 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                    detailsTab === tab
+                      ? 'bg-slate-700 text-slate-100'
+                      : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  {tab === 'history' ? 'Usage History' : 'By Project'}
+                </button>
+              ))}
+            </div>
+
+            {detailsTab === 'history' && (
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { label: 'Last 7 Days',  days: usage.last7Days },
+                  { label: 'Last 30 Days', days: usage.last30Days },
+                ].map(({ label, days }) => {
+                  const maxCredits = Math.max(...days.map((d) => d.credits), 1);
                   return (
-                    <li key={project.id} className="flex items-center gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1 gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm font-medium text-slate-200 truncate">
-                              {project.name}
-                            </span>
-                            <span className="text-[10px] font-medium text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded flex-shrink-0">
-                              {project.engine}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-3 flex-shrink-0 text-xs text-slate-500">
-                            <span className="text-violet-400 font-medium">
-                              {project.creditsUsed.toLocaleString()} credits
-                            </span>
-                            <span>{projectPct.toFixed(1)}%</span>
-                            {project.lastActiveAt && (
-                              <span>{formatRelativeTime(project.lastActiveAt)}</span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-gradient-to-r from-violet-600 to-violet-400"
-                            style={{ width: `${Math.min(projectPct, 100)}%` }}
-                          />
-                        </div>
+                    <div key={label} className="bg-slate-800/40 border border-slate-800 rounded-xl p-6">
+                      <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-5">
+                        {label}
+                      </h2>
+                      <div className="flex items-end gap-1 h-28">
+                        {days.map((d) => {
+                          const heightPct = (d.credits / maxCredits) * 100;
+                          return (
+                            <div
+                              key={d.date}
+                              className="group flex-1 flex flex-col items-center justify-end h-full gap-1"
+                            >
+                              <span className="text-[10px] text-violet-400 font-medium opacity-0 group-hover:opacity-100 transition-opacity leading-none">
+                                {d.credits}
+                              </span>
+                              <div
+                                className="w-full rounded-t bg-gradient-to-t from-violet-600 to-violet-400 min-h-[2px] transition-all"
+                                style={{ height: `${Math.max(heightPct, d.credits > 0 ? 4 : 0)}%` }}
+                              />
+                            </div>
+                          );
+                        })}
                       </div>
-                    </li>
+                      <div className="flex justify-between mt-1">
+                        {[days[0], days[Math.floor(days.length / 2)], days[days.length - 1]]
+                          .filter(Boolean)
+                          .map((d, i) => (
+                            <span key={i} className="text-[10px] text-slate-600">
+                              {new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </span>
+                          ))}
+                      </div>
+                    </div>
                   );
                 })}
-              </ul>
+              </div>
+            )}
+
+            {detailsTab === 'projects' && (
+              projects.length === 0 ? (
+                <div className="text-center py-10">
+                  <p className="text-sm text-slate-500">No projects yet</p>
+                  <p className="text-xs text-slate-600 mt-1">Create a project to see per-project usage</p>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {projects.map((project) => {
+                    const projectPct = usage.creditsLimit > 0
+                      ? (project.creditsUsed / usage.creditsLimit) * 100
+                      : 0;
+                    return (
+                      <li key={project.id} className="flex items-center gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1 gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-sm font-medium text-slate-200 truncate">
+                                {project.name}
+                              </span>
+                              <span className="text-[10px] font-medium text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded flex-shrink-0">
+                                {project.engine}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-3 flex-shrink-0 text-xs text-slate-500">
+                              <span className="text-violet-400 font-medium">
+                                {project.creditsUsed.toLocaleString()} credits
+                              </span>
+                              <span>{projectPct.toFixed(1)}%</span>
+                              {project.lastActiveAt && (
+                                <span>{formatRelativeTime(project.lastActiveAt)}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-violet-600 to-violet-400"
+                              style={{ width: `${Math.min(projectPct, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )
             )}
           </div>
         )}
