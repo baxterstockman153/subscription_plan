@@ -1,9 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { api } from '../../../src/api/client';
 
-export default function CheckoutReturnPage() {
+function CheckoutReturnContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [statusMessage, setStatusMessage] = useState('Verifying payment…');
@@ -36,5 +36,13 @@ export default function CheckoutReturnPage() {
         <p className="text-sm text-slate-400">{statusMessage}</p>
       </div>
     </div>
+  );
+}
+
+export default function CheckoutReturnPage() {
+  return (
+    <Suspense fallback={<div className="h-screen bg-slate-950" />}>
+      <CheckoutReturnContent />
+    </Suspense>
   );
 }
